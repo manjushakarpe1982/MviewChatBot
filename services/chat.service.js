@@ -36,8 +36,7 @@ const httpAgent = new (require('http').Agent)({
 });
 
 const axiosInstance = axios.create({
-  httpAgent,
-  timeout: 3000, // Aggressive 3 second timeout
+  httpAgent
 });
 
 // =====================================
