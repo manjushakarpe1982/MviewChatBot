@@ -37,7 +37,7 @@ const httpAgent = new (require('http').Agent)({
 
 const axiosInstance = axios.create({
   httpAgent,
-  timeout: 8000, // 8 second timeout instead of 120 seconds
+  timeout: 3000, // Aggressive 3 second timeout
 });
 
 // =====================================
@@ -45,14 +45,59 @@ const axiosInstance = axios.create({
 // =====================================
 
 const PREDEFINED_RESPONSES = {
-  'what is boe': 'BOE stands for Barrel of Oil Equivalent, a unit measuring energy content of oil and gas.',
-  'what is mcf': 'MCF stands for thousand cubic feet, a standard unit for measuring natural gas volume.',
-  'what is eur': 'EUR stands for Estimated Ultimate Recovery, the total hydrocarbons expected from a well.',
-  'what is api': 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.',
-  'what is rrc': 'RRC refers to the Railroad Commission of Texas, which regulates oil and gas operations in Texas.',
+  // Greetings
   'hello': 'Hello! How may I help you with Texas oil and gas concepts today?',
   'hi': 'Hello! How may I help you with Texas oil and gas concepts today?',
   'hey': 'Hello! How may I help you with Texas oil and gas concepts today?',
+  'good morning': 'Hello! How may I help you with Texas oil and gas concepts today?',
+  'good afternoon': 'Hello! How may I help you with Texas oil and gas concepts today?',
+  
+  // Oil & Gas Units
+  'what is boe': 'BOE stands for Barrel of Oil Equivalent, a unit measuring energy content of oil and gas.',
+  'boe': 'BOE stands for Barrel of Oil Equivalent, a unit measuring energy content of oil and gas.',
+  'what is mcf': 'MCF stands for thousand cubic feet, a standard unit for measuring natural gas volume.',
+  'mcf': 'MCF stands for thousand cubic feet, a standard unit for measuring natural gas volume.',
+  'what is bbls': 'BBL stands for barrel, a unit of measurement for crude oil (42 US gallons).',
+  'bbls': 'BBL stands for barrel, a unit of measurement for crude oil (42 US gallons).',
+  'what is bbl': 'BBL stands for barrel, a unit of measurement for crude oil (42 US gallons).',
+  'bbl': 'BBL stands for barrel, a unit of measurement for crude oil (42 US gallons).',
+  
+  // Recovery & Reserves
+  'what is eur': 'EUR stands for Estimated Ultimate Recovery, the total hydrocarbons expected from a well.',
+  'eur': 'EUR stands for Estimated Ultimate Recovery, the total hydrocarbons expected from a well.',
+  'what is proved reserves': 'Proved reserves are oil/gas quantities estimated to be recoverable with reasonable certainty.',
+  'proved reserves': 'Proved reserves are oil/gas quantities estimated to be recoverable with reasonable certainty.',
+  
+  // API & Identification
+  'what is api': 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.',
+  'api': 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.',
+  'what is api number': 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.',
+  'api number': 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.',
+  
+  // Regulatory
+  'what is rrc': 'RRC refers to the Railroad Commission of Texas, which regulates oil and gas operations in Texas.',
+  'rrc': 'RRC refers to the Railroad Commission of Texas, which regulates oil and gas operations in Texas.',
+  'railroad commission': 'The Railroad Commission of Texas regulates oil and gas operations, pipeline safety, and mineral rights.',
+  'texas railroad commission': 'The Railroad Commission of Texas regulates oil and gas operations, pipeline safety, and mineral rights.',
+  
+  // Well Operations
+  'what is drilling': 'Drilling is the process of boring holes into the earth to extract oil and gas.',
+  'drilling': 'Drilling is the process of boring holes into the earth to extract oil and gas.',
+  'what is completion': 'Well completion involves preparing a drilled well for production by installing equipment and stimulation.',
+  'completion': 'Well completion involves preparing a drilled well for production by installing equipment and stimulation.',
+  'what is fracking': 'Fracking (hydraulic fracturing) uses high-pressure fluid to create fractures in rock formations.',
+  'fracking': 'Fracking (hydraulic fracturing) uses high-pressure fluid to create fractures in rock formations.',
+  'hydraulic fracturing': 'Hydraulic fracturing uses high-pressure fluid to create fractures in rock formations.',
+  
+  // Business Terms
+  'what is operator': 'An operator is the company responsible for drilling and operating an oil or gas well.',
+  'operator': 'An operator is the company responsible for drilling and operating an oil or gas well.',
+  'what is lease': 'A lease is an agreement granting rights to explore and extract oil/gas from specific land.',
+  'lease': 'A lease is an agreement granting rights to explore and extract oil/gas from specific land.',
+  
+  // Common Questions
+  'help': 'I can help with Texas oil and gas concepts like BOE, MCF, API numbers, drilling, and RRC regulations.',
+  'what can you do': 'I can help with Texas oil and gas concepts like BOE, MCF, API numbers, drilling, and RRC regulations.',
 };
 
 // =====================================
@@ -95,7 +140,20 @@ function saveToCache(question, response) {
 
 function getPredefinedResponse(question) {
   const key = getCacheKey(question);
-  return PREDEFINED_RESPONSES[key] || null;
+  
+  // Direct match
+  if (PREDEFINED_RESPONSES[key]) {
+    return PREDEFINED_RESPONSES[key];
+  }
+  
+  // Fuzzy matching for variations
+  for (const [predefinedKey, response] of Object.entries(PREDEFINED_RESPONSES)) {
+    if (key.includes(predefinedKey) || predefinedKey.includes(key)) {
+      return response;
+    }
+  }
+  
+  return null;
 }
 
 // =====================================
@@ -239,7 +297,7 @@ async function askChatbot(userQuestion) {
 
     if (response.status !== 200) {
       console.log(SERVICE_DOWN_MESSAGE);
-      return SERVICE_DOWN_MESSAGE;
+      return getSmartFallback(userQuestion);
     }
 
     const rawText = response.data.response || "";
@@ -252,13 +310,68 @@ async function askChatbot(userQuestion) {
   } catch (e) {
     console.log('API Error:', e.message);
     
-    // Fallback to generic response if API fails
-    if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT') {
-      return "I'm experiencing high load. Please try rephrasing your question or try again shortly.";
-    }
-    
-    return SERVICE_DOWN_MESSAGE;
+    // Smart fallback based on question type
+    return getSmartFallback(userQuestion);
   }
+}
+
+// =====================================
+// SMART FALLBACK SYSTEM
+// =====================================
+
+function getSmartFallback(userQuestion) {
+  const lowerQuestion = userQuestion.toLowerCase();
+  
+  // Greeting detection
+  if (/\b(hi|hello|hey|good morning|good afternoon)\b/.test(lowerQuestion)) {
+    return 'Hello! How may I help you with Texas oil and gas concepts today?';
+  }
+  
+  // Technical term detection with basic explanations
+  if (/\b(boe|barrel.*oil.*equivalent)\b/.test(lowerQuestion)) {
+    return 'BOE stands for Barrel of Oil Equivalent, a unit measuring energy content of oil and gas.';
+  }
+  
+  if (/\b(mcf|thousand.*cubic.*feet)\b/.test(lowerQuestion)) {
+    return 'MCF stands for thousand cubic feet, a standard unit for measuring natural gas volume.';
+  }
+  
+  if (/\b(api.*number|well.*identifier)\b/.test(lowerQuestion)) {
+    return 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.';
+  }
+  
+  if (/\b(rrc|railroad.*commission)\b/.test(lowerQuestion)) {
+    return 'RRC refers to the Railroad Commission of Texas, which regulates oil and gas operations in Texas.';
+  }
+  
+  if (/\b(drilling|drill|bore)\b/.test(lowerQuestion)) {
+    return 'Drilling is the process of boring holes into the earth to extract oil and gas.';
+  }
+  
+  if (/\b(fracking|hydraulic.*fracturing)\b/.test(lowerQuestion)) {
+    return 'Fracking uses high-pressure fluid to create fractures in rock formations for extraction.';
+  }
+  
+  if (/\b(operator|operating.*company)\b/.test(lowerQuestion)) {
+    return 'An operator is the company responsible for drilling and operating an oil or gas well.';
+  }
+  
+  if (/\b(lease|mineral.*rights)\b/.test(lowerQuestion)) {
+    return 'A lease is an agreement granting rights to explore and extract oil/gas from specific land.';
+  }
+  
+  // Real-time data requests
+  if (/\b(current|now|today|real.*time|live|latest)\b/.test(lowerQuestion)) {
+    return REALTIME_REFUSAL;
+  }
+  
+  // Mineral View support
+  if (/\b(mineral.*view|website|support|help.*me)\b/.test(lowerQuestion)) {
+    return MINERAL_VIEW_SUPPORT;
+  }
+  
+  // Default fallback
+  return "I can help with Texas oil and gas concepts like BOE, MCF, API numbers, drilling, and RRC regulations. Could you rephrase your question?";
 }
 
 // =====================================
