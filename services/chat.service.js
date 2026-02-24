@@ -44,61 +44,89 @@ const axiosInstance = axios.create({
 // PREDEFINED RESPONSES FOR COMMON QUERIES
 // =====================================
 
-const PREDEFINED_RESPONSES = {
-  // Greetings
+// =====================================
+// PREDEFINED FAST RESPONSES (PERFORMANCE OPTIMIZATION)
+// =====================================
+
+const FAST_RESPONSES = {
+  // Exact match greetings for instant response
   'hello': 'Hello! How may I help you with Texas oil and gas concepts today?',
   'hi': 'Hello! How may I help you with Texas oil and gas concepts today?',
   'hey': 'Hello! How may I help you with Texas oil and gas concepts today?',
   'good morning': 'Hello! How may I help you with Texas oil and gas concepts today?',
-  'good afternoon': 'Hello! How may I help you with Texas oil and gas concepts today?',
   
-  // Oil & Gas Units
-  'what is boe': 'BOE stands for Barrel of Oil Equivalent, a unit measuring energy content of oil and gas.',
+  // Common technical terms for instant response
   'boe': 'BOE stands for Barrel of Oil Equivalent, a unit measuring energy content of oil and gas.',
-  'what is mcf': 'MCF stands for thousand cubic feet, a standard unit for measuring natural gas volume.',
   'mcf': 'MCF stands for thousand cubic feet, a standard unit for measuring natural gas volume.',
-  'what is bbls': 'BBL stands for barrel, a unit of measurement for crude oil (42 US gallons).',
-  'bbls': 'BBL stands for barrel, a unit of measurement for crude oil (42 US gallons).',
-  'what is bbl': 'BBL stands for barrel, a unit of measurement for crude oil (42 US gallons).',
-  'bbl': 'BBL stands for barrel, a unit of measurement for crude oil (42 US gallons).',
-  
-  // Recovery & Reserves
-  'what is eur': 'EUR stands for Estimated Ultimate Recovery, the total hydrocarbons expected from a well.',
-  'eur': 'EUR stands for Estimated Ultimate Recovery, the total hydrocarbons expected from a well.',
-  'what is proved reserves': 'Proved reserves are oil/gas quantities estimated to be recoverable with reasonable certainty.',
-  'proved reserves': 'Proved reserves are oil/gas quantities estimated to be recoverable with reasonable certainty.',
-  
-  // API & Identification
-  'what is api': 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.',
   'api': 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.',
-  'what is api number': 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.',
-  'api number': 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.',
-  
-  // Regulatory
-  'what is rrc': 'RRC refers to the Railroad Commission of Texas, which regulates oil and gas operations in Texas.',
   'rrc': 'RRC refers to the Railroad Commission of Texas, which regulates oil and gas operations in Texas.',
-  'railroad commission': 'The Railroad Commission of Texas regulates oil and gas operations, pipeline safety, and mineral rights.',
-  'texas railroad commission': 'The Railroad Commission of Texas regulates oil and gas operations, pipeline safety, and mineral rights.',
-  
-  // Well Operations
-  'what is drilling': 'Drilling is the process of boring holes into the earth to extract oil and gas.',
-  'drilling': 'Drilling is the process of boring holes into the earth to extract oil and gas.',
-  'what is completion': 'Well completion involves preparing a drilled well for production by installing equipment and stimulation.',
-  'completion': 'Well completion involves preparing a drilled well for production by installing equipment and stimulation.',
-  'what is fracking': 'Fracking (hydraulic fracturing) uses high-pressure fluid to create fractures in rock formations.',
-  'fracking': 'Fracking (hydraulic fracturing) uses high-pressure fluid to create fractures in rock formations.',
-  'hydraulic fracturing': 'Hydraulic fracturing uses high-pressure fluid to create fractures in rock formations.',
-  
-  // Business Terms
-  'what is operator': 'An operator is the company responsible for drilling and operating an oil or gas well.',
-  'operator': 'An operator is the company responsible for drilling and operating an oil or gas well.',
-  'what is lease': 'A lease is an agreement granting rights to explore and extract oil/gas from specific land.',
-  'lease': 'A lease is an agreement granting rights to explore and extract oil/gas from specific land.',
-  
-  // Common Questions
-  'help': 'I can help with Texas oil and gas concepts like BOE, MCF, API numbers, drilling, and RRC regulations.',
-  'what can you do': 'I can help with Texas oil and gas concepts like BOE, MCF, API numbers, drilling, and RRC regulations.',
 };
+
+// =====================================
+// PYTHON-STYLE INTENT CLASSIFICATION
+// =====================================
+
+function classifyQuestionIntent(userQuestion) {
+  const lowerQuestion = userQuestion.toLowerCase().trim();
+  
+  // Check for fast responses first (performance optimization)
+  const fastResponse = FAST_RESPONSES[lowerQuestion];
+  if (fastResponse) {
+    return { intent: 'FAST_RESPONSE', answer: fastResponse };
+  }
+  
+  // GREETING Intent - Exact matches only
+  if (/^(hello|hi|hey|good morning|good afternoon|good evening)$/i.test(lowerQuestion)) {
+    return { intent: 'GREETING', answer: 'Hello! How may I help you with Texas oil and gas concepts today?' };
+  }
+  
+  // INDUSTRY_CONCEPT Intent - Texas oil and gas concepts
+  const industryPatterns = [
+    /\b(boe|barrel.*oil.*equivalent)\b/i,
+    /\b(bbl|bbls|barrel)\b/i,
+    /\b(mcf|thousand.*cubic.*feet)\b/i,
+    /\b(eur|estimated.*ultimate.*recovery)\b/i,
+    /\b(lease|unit|field)\b/i,
+    /\b(well|wells)\b/i,
+    /\b(operator|operated|company)\b/i,
+    /\b(api.*number|api)\b/i,
+    /\b(drilling.*permit|drilling)\b/i,
+    /\b(completion.*record|completion)\b/i,
+    /\b(texas.*railroad.*commission|rrc)\b/i,
+    /\b(fracking|fracturing|hydraulic)\b/i,
+    /\b(reserves|production)\b/i,
+    /\b(permit|regulation)\b/i
+  ];
+  
+  for (const pattern of industryPatterns) {
+    if (pattern.test(lowerQuestion)) {
+      return { intent: 'INDUSTRY_CONCEPT', answer: null }; // Will use LLM
+    }
+  }
+  
+  // REALTIME_DATA Intent
+  if (/\b(current|now|today|real.*time|live|latest|price)\b/i.test(lowerQuestion)) {
+    return { intent: 'REALTIME_DATA', answer: REALTIME_REFUSAL };
+  }
+  
+  // MINERAL_VIEW_SUPPORT Intent
+  if (/\b(mineral.*view|website|support|contact)\b/i.test(lowerQuestion)) {
+    return { intent: 'MINERAL_VIEW_SUPPORT', answer: MINERAL_VIEW_SUPPORT };
+  }
+  
+  // OUT_OF_SCOPE Intent
+  if (/\b(weather|sports|politics|food|music|movie|game|celebrity)\b/i.test(lowerQuestion)) {
+    return { intent: 'OUT_OF_SCOPE', answer: OUT_OF_SCOPE_REFUSAL };
+  }
+  
+  // Default to INDUSTRY_CONCEPT if contains oil/gas related terms
+  if (/\b(oil|gas|petroleum|energy|texas|mineral)\b/i.test(lowerQuestion)) {
+    return { intent: 'INDUSTRY_CONCEPT', answer: null }; // Will use LLM
+  }
+  
+  // Unknown intent
+  return { intent: 'OUT_OF_SCOPE', answer: OUT_OF_SCOPE_REFUSAL };
+}
 
 // =====================================
 // CACHE MANAGEMENT
@@ -138,22 +166,17 @@ function saveToCache(question, response) {
   });
 }
 
+// =====================================
+// INTENT CLASSIFICATION SYSTEM
+// =====================================
+
+function classifyIntent(question) {
+  return classifyQuestionIntent(question);
+}
+
 function getPredefinedResponse(question) {
-  const key = getCacheKey(question);
-  
-  // Direct match
-  if (PREDEFINED_RESPONSES[key]) {
-    return PREDEFINED_RESPONSES[key];
-  }
-  
-  // Fuzzy matching for variations
-  for (const [predefinedKey, response] of Object.entries(PREDEFINED_RESPONSES)) {
-    if (key.includes(predefinedKey) || predefinedKey.includes(key)) {
-      return response;
-    }
-  }
-  
-  return null;
+  const classification = classifyQuestionIntent(question);
+  return classification?.answer || null;
 }
 
 // =====================================
@@ -206,13 +229,81 @@ function detectOperatorQuery(text) {
 // PROMPT BUILDER
 // =====================================
 
-function buildOptimizedPrompt(userQuestion) {
-  // Shorter, more direct prompt for faster processing
-  return `Texas oil/gas expert. Respond in JSON: {"intent":"GREETING|INDUSTRY_CONCEPT|REALTIME_DATA|MINERAL_VIEW_SUPPORT|OUT_OF_SCOPE","answer":"response"}
+// =====================================
+// PYTHON-STYLE PROMPT BUILDER
+// =====================================
 
-Rules: GREETING="Hello! How may I help you with Texas oil and gas concepts today?", INDUSTRY_CONCEPT=max 30 words factual answer, REALTIME_DATA="${REALTIME_REFUSAL}", MINERAL_VIEW_SUPPORT="${MINERAL_VIEW_SUPPORT}", OUT_OF_SCOPE="${OUT_OF_SCOPE_REFUSAL}"
+function buildPrompt(userQuestion) {
+  return `You are a highly accurate Texas Oil and Gas expert assistant for the Mineral View website.
 
-Q: ${userQuestion}`;
+Your job has TWO steps:
+
+STEP 1 — Classify the user question into ONE intent:
+
+GREETING
+INDUSTRY_CONCEPT
+REALTIME_DATA
+MINERAL_VIEW_SUPPORT
+OUT_OF_SCOPE
+
+STEP 2 — Respond STRICTLY in this JSON format:
+
+{
+"intent": "GREETING or INDUSTRY_CONCEPT or REALTIME_DATA or MINERAL_VIEW_SUPPORT or OUT_OF_SCOPE",
+"answer": "your answer here"
+}
+
+INTENT DEFINITIONS:
+
+GREETING:
+User greetings or casual friendly interaction.
+
+INDUSTRY_CONCEPT:
+Texas oil and gas concepts, BOE, BBL, MCF, EUR, leases, wells, operators, API numbers, drilling permits, completion records, Texas Railroad Commission regulations.
+
+REALTIME_DATA:
+Requests for current or live data.
+
+MINERAL_VIEW_SUPPORT:
+Questions about Mineral View website.
+
+OUT_OF_SCOPE:
+Anything unrelated.
+
+STRICT ANSWER RULES:
+
+If GREETING:
+answer EXACTLY:
+"Hello! How may I help you with Texas oil and gas concepts today?"
+
+If INDUSTRY_CONCEPT:
+• Maximum 2 sentences
+• Maximum 30 words
+• Clear, factual, professional
+• Friendly tone
+• Use Texas Railroad Commission terminology when relevant
+• Never hallucinate lease or operator specific facts
+
+If REALTIME_DATA:
+answer EXACTLY:
+"${REALTIME_REFUSAL}"
+
+If MINERAL_VIEW_SUPPORT:
+answer EXACTLY:
+"${MINERAL_VIEW_SUPPORT}"
+
+If OUT_OF_SCOPE:
+answer EXACTLY:
+"${OUT_OF_SCOPE_REFUSAL}"
+
+IMPORTANT:
+• Do NOT hallucinate unknown lease/operator details
+• If unknown, say you don't have specific information
+• Do NOT repeat identical answers
+• Ignore meaningless input
+• Only return valid JSON
+
+Question: ${userQuestion}`;
 }
 
 // =====================================
@@ -265,20 +356,25 @@ async function askChatbot(userQuestion) {
     return INVALID_INPUT_MESSAGE;
   }
 
-  // Check for predefined responses first (instant response)
-  const predefinedResponse = getPredefinedResponse(userQuestion);
-  if (predefinedResponse) {
-    return predefinedResponse;
+  // Step 1: Check for predefined fast responses (instant ~50ms)
+  const classification = classifyQuestionIntent(userQuestion);
+  if (classification && classification.answer) {
+    return classification.answer;
   }
 
-  // Check cache (near-instant response)
+  // Step 2: Check cache (near-instant ~100ms)
   const cachedResponse = getFromCache(userQuestion);
   if (cachedResponse) {
     return cachedResponse;
   }
 
-  // Optimized prompt for faster processing
-  const prompt = buildOptimizedPrompt(userQuestion);
+  // Step 3: Only use LLM for INDUSTRY_CONCEPT questions without predefined answers
+  if (classification?.intent !== 'INDUSTRY_CONCEPT') {
+    return OUT_OF_SCOPE_REFUSAL;
+  }
+
+  // Use full prompt like Python version for better accuracy
+  const prompt = buildPrompt(userQuestion);
 
   const payload = {
     model: MODEL_NAME,
@@ -287,8 +383,8 @@ async function askChatbot(userQuestion) {
     options: {
       temperature: 0.1,
       top_p: 0.9,
-      repeat_penalty: 1.1, // Reduced from 1.2
-      num_predict: 60,     // Reduced from 120 for faster response
+      repeat_penalty: 1.2, // Same as Python version
+      num_predict: 120,     // Same as Python version
     },
   };
 
@@ -297,7 +393,7 @@ async function askChatbot(userQuestion) {
 
     if (response.status !== 200) {
       console.log(SERVICE_DOWN_MESSAGE);
-      return getSmartFallback(userQuestion);
+      return SERVICE_DOWN_MESSAGE;
     }
 
     const rawText = response.data.response || "";
@@ -309,9 +405,7 @@ async function askChatbot(userQuestion) {
     return cleanedResponse;
   } catch (e) {
     console.log('API Error:', e.message);
-    
-    // Smart fallback based on question type
-    return getSmartFallback(userQuestion);
+    return SERVICE_DOWN_MESSAGE;
   }
 }
 
@@ -319,63 +413,8 @@ async function askChatbot(userQuestion) {
 // SMART FALLBACK SYSTEM
 // =====================================
 
-function getSmartFallback(userQuestion) {
-  const lowerQuestion = userQuestion.toLowerCase();
-  
-  // Greeting detection
-  if (/\b(hi|hello|hey|good morning|good afternoon)\b/.test(lowerQuestion)) {
-    return 'Hello! How may I help you with Texas oil and gas concepts today?';
-  }
-  
-  // Technical term detection with basic explanations
-  if (/\b(boe|barrel.*oil.*equivalent)\b/.test(lowerQuestion)) {
-    return 'BOE stands for Barrel of Oil Equivalent, a unit measuring energy content of oil and gas.';
-  }
-  
-  if (/\b(mcf|thousand.*cubic.*feet)\b/.test(lowerQuestion)) {
-    return 'MCF stands for thousand cubic feet, a standard unit for measuring natural gas volume.';
-  }
-  
-  if (/\b(api.*number|well.*identifier)\b/.test(lowerQuestion)) {
-    return 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.';
-  }
-  
-  if (/\b(rrc|railroad.*commission)\b/.test(lowerQuestion)) {
-    return 'RRC refers to the Railroad Commission of Texas, which regulates oil and gas operations in Texas.';
-  }
-  
-  if (/\b(drilling|drill|bore)\b/.test(lowerQuestion)) {
-    return 'Drilling is the process of boring holes into the earth to extract oil and gas.';
-  }
-  
-  if (/\b(fracking|hydraulic.*fracturing)\b/.test(lowerQuestion)) {
-    return 'Fracking uses high-pressure fluid to create fractures in rock formations for extraction.';
-  }
-  
-  if (/\b(operator|operating.*company)\b/.test(lowerQuestion)) {
-    return 'An operator is the company responsible for drilling and operating an oil or gas well.';
-  }
-  
-  if (/\b(lease|mineral.*rights)\b/.test(lowerQuestion)) {
-    return 'A lease is an agreement granting rights to explore and extract oil/gas from specific land.';
-  }
-  
-  // Real-time data requests
-  if (/\b(current|now|today|real.*time|live|latest)\b/.test(lowerQuestion)) {
-    return REALTIME_REFUSAL;
-  }
-  
-  // Mineral View support
-  if (/\b(mineral.*view|website|support|help.*me)\b/.test(lowerQuestion)) {
-    return MINERAL_VIEW_SUPPORT;
-  }
-  
-  // Default fallback
-  return "I can help with Texas oil and gas concepts like BOE, MCF, API numbers, drilling, and RRC regulations. Could you rephrase your question?";
-}
-
 // =====================================
-// MEMORY CONTEXT BUILDER
+// MEMORY CONTEXT BUILDER (PYTHON VERSION LOGIC)
 // =====================================
 
 function buildContextualQuestion(userQuestion) {
@@ -394,7 +433,7 @@ function buildContextualQuestion(userQuestion) {
 }
 
 // =====================================
-// ASK WITH MEMORY
+// ASK WITH MEMORY (PYTHON VERSION LOGIC)
 // =====================================
 
 async function askChatbotWithMemory(userQuestion) {
@@ -402,6 +441,7 @@ async function askChatbotWithMemory(userQuestion) {
 
   let answer = await askChatbot(contextualQuestion);
 
+  // Python-style lease/operator detection with fallback
   if (detectLeaseQuery(userQuestion) && answer.toLowerCase().includes("don't have specific information")) {
     answer = UNKNOWN_LEASE_MESSAGE;
   }
