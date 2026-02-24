@@ -1,9 +1,24 @@
 ﻿// server.js
 
 const express = require("express");
+const cors = require("cors");
 const chatRoutes = require("./routes/chat.routes");
 
 const app = express();
+
+// =====================================
+// MIDDLEWARE
+// =====================================
+
+// Configure CORS
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || "*", // Allow all origins in development
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // =====================================
