@@ -4,8 +4,11 @@ const { askChatbotWithMemory } = require("../services/chat.service");
 const { INVALID_INPUT_MESSAGE } = require("../config/constants");
 
 async function chat(req, res) {
+  const startTime = Date.now();
   const { question } = req.body;
-console.log('api code running')
+  
+  console.log('Chat API called:', new Date().toISOString());
+  
   if (!question || question.trim() === "") {
     return res.status(400).json({ error: INVALID_INPUT_MESSAGE });
   }
@@ -19,9 +22,22 @@ console.log('api code running')
     return res.json({ answer: "Goodbye." });
   }
 
-  const answer = await askChatbotWithMemory(userQuestion);
-
-  return res.json({ answer });
+  try {
+    const answer = await askChatbotWithMemory(userQuestion);
+    const responseTime = Date.now() - startTime;
+    
+    console.log(`Response time: ${responseTime}ms`);
+    
+    return res.json({ 
+      answer,
+      responseTime: `${responseTime}ms`
+    });
+  } catch (error) {
+    console.error('Chat error:', error);
+    return res.status(500).json({ 
+      error: "Sorry, I'm experiencing technical difficulties. Please try again." 
+    });
+  }
 }
 
 async function testing(req, res) {

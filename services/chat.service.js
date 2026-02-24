@@ -17,10 +17,86 @@ const {
 } = require("../config/constants");
 
 // =====================================
-// SIMPLE MEMORY STORAGE
+// MEMORY & CACHE STORAGE
 // =====================================
 
 const conversationMemory = [];
+const responseCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_SIZE = 1000;
+
+// =====================================
+// HTTP CLIENT WITH CONNECTION POOLING
+// =====================================
+
+const httpAgent = new (require('http').Agent)({ 
+  keepAlive: true,
+  maxSockets: 5,
+  timeout: 8000
+});
+
+const axiosInstance = axios.create({
+  httpAgent,
+  timeout: 8000, // 8 second timeout instead of 120 seconds
+});
+
+// =====================================
+// PREDEFINED RESPONSES FOR COMMON QUERIES
+// =====================================
+
+const PREDEFINED_RESPONSES = {
+  'what is boe': 'BOE stands for Barrel of Oil Equivalent, a unit measuring energy content of oil and gas.',
+  'what is mcf': 'MCF stands for thousand cubic feet, a standard unit for measuring natural gas volume.',
+  'what is eur': 'EUR stands for Estimated Ultimate Recovery, the total hydrocarbons expected from a well.',
+  'what is api': 'API number is a unique identifier assigned by the American Petroleum Institute to oil and gas wells.',
+  'what is rrc': 'RRC refers to the Railroad Commission of Texas, which regulates oil and gas operations in Texas.',
+  'hello': 'Hello! How may I help you with Texas oil and gas concepts today?',
+  'hi': 'Hello! How may I help you with Texas oil and gas concepts today?',
+  'hey': 'Hello! How may I help you with Texas oil and gas concepts today?',
+};
+
+// =====================================
+// CACHE MANAGEMENT
+// =====================================
+
+function getCacheKey(question) {
+  return question.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
+}
+
+function getFromCache(question) {
+  const key = getCacheKey(question);
+  const cached = responseCache.get(key);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.response;
+  }
+  
+  if (cached) {
+    responseCache.delete(key); // Remove expired cache
+  }
+  
+  return null;
+}
+
+function saveToCache(question, response) {
+  const key = getCacheKey(question);
+  
+  // Implement LRU cache by removing oldest entries
+  if (responseCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = responseCache.keys().next().value;
+    responseCache.delete(firstKey);
+  }
+  
+  responseCache.set(key, {
+    response,
+    timestamp: Date.now()
+  });
+}
+
+function getPredefinedResponse(question) {
+  const key = getCacheKey(question);
+  return PREDEFINED_RESPONSES[key] || null;
+}
 
 // =====================================
 // SPELLING NORMALIZATION
@@ -72,86 +148,13 @@ function detectOperatorQuery(text) {
 // PROMPT BUILDER
 // =====================================
 
-function buildPrompt(userQuestion) {
-  const prompt = `
-You are a highly accurate Texas Oil and Gas expert assistant for the Mineral View website.
+function buildOptimizedPrompt(userQuestion) {
+  // Shorter, more direct prompt for faster processing
+  return `Texas oil/gas expert. Respond in JSON: {"intent":"GREETING|INDUSTRY_CONCEPT|REALTIME_DATA|MINERAL_VIEW_SUPPORT|OUT_OF_SCOPE","answer":"response"}
 
-Your job has TWO steps:
+Rules: GREETING="Hello! How may I help you with Texas oil and gas concepts today?", INDUSTRY_CONCEPT=max 30 words factual answer, REALTIME_DATA="${REALTIME_REFUSAL}", MINERAL_VIEW_SUPPORT="${MINERAL_VIEW_SUPPORT}", OUT_OF_SCOPE="${OUT_OF_SCOPE_REFUSAL}"
 
-STEP 1 — Classify the user question into ONE intent:
-
-GREETING
-INDUSTRY_CONCEPT
-REALTIME_DATA
-MINERAL_VIEW_SUPPORT
-OUT_OF_SCOPE
-
-
-STEP 2 — Respond STRICTLY in this JSON format:
-
-{
-"intent": "GREETING or INDUSTRY_CONCEPT or REALTIME_DATA or MINERAL_VIEW_SUPPORT or OUT_OF_SCOPE",
-"answer": "your answer here"
-}
-
-
-INTENT DEFINITIONS:
-
-GREETING:
-User greetings or casual friendly interaction.
-
-INDUSTRY_CONCEPT:
-Texas oil and gas concepts, BOE, BBL, MCF, EUR, leases, wells, operators, API numbers, drilling permits, completion records, Texas Railroad Commission regulations.
-
-REALTIME_DATA:
-Requests for current or live data.
-
-MINERAL_VIEW_SUPPORT:
-Questions about Mineral View website.
-
-OUT_OF_SCOPE:
-Anything unrelated.
-
-
-STRICT ANSWER RULES:
-
-If GREETING:
-answer EXACTLY:
-"Hello! How may I help you with Texas oil and gas concepts today?"
-
-If INDUSTRY_CONCEPT:
-• Maximum 2 sentences
-• Maximum 30 words
-• Clear, factual, professional
-• Friendly tone
-• Use Texas Railroad Commission terminology when relevant
-• Never hallucinate lease or operator specific facts
-
-If REALTIME_DATA:
-answer EXACTLY:
-"${REALTIME_REFUSAL}"
-
-If MINERAL_VIEW_SUPPORT:
-answer EXACTLY:
-"${MINERAL_VIEW_SUPPORT}"
-
-If OUT_OF_SCOPE:
-answer EXACTLY:
-"${OUT_OF_SCOPE_REFUSAL}"
-
-
-IMPORTANT:
-
-• Do NOT hallucinate unknown lease/operator details
-• If unknown, say you don't have specific information
-• Do NOT repeat identical answers
-• Ignore meaningless input
-• Only return valid JSON
-
-
-Question: ${userQuestion}
-`;
-  return prompt;
+Q: ${userQuestion}`;
 }
 
 // =====================================
@@ -204,7 +207,20 @@ async function askChatbot(userQuestion) {
     return INVALID_INPUT_MESSAGE;
   }
 
-  const prompt = buildPrompt(userQuestion);
+  // Check for predefined responses first (instant response)
+  const predefinedResponse = getPredefinedResponse(userQuestion);
+  if (predefinedResponse) {
+    return predefinedResponse;
+  }
+
+  // Check cache (near-instant response)
+  const cachedResponse = getFromCache(userQuestion);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  // Optimized prompt for faster processing
+  const prompt = buildOptimizedPrompt(userQuestion);
 
   const payload = {
     model: MODEL_NAME,
@@ -213,23 +229,34 @@ async function askChatbot(userQuestion) {
     options: {
       temperature: 0.1,
       top_p: 0.9,
-      repeat_penalty: 1.2,
-      num_predict: 120,
+      repeat_penalty: 1.1, // Reduced from 1.2
+      num_predict: 60,     // Reduced from 120 for faster response
     },
   };
 
   try {
-    const response = await axios.post(OLLAMA_URL, payload, { timeout: 120000 });
+    const response = await axiosInstance.post(OLLAMA_URL, payload);
 
     if (response.status !== 200) {
-      console.log(SERVICE_DOWN_MESSAGE)
+      console.log(SERVICE_DOWN_MESSAGE);
       return SERVICE_DOWN_MESSAGE;
     }
 
     const rawText = response.data.response || "";
-    return cleanResponse(rawText);
+    const cleanedResponse = cleanResponse(rawText);
+    
+    // Cache the response for future use
+    saveToCache(userQuestion, cleanedResponse);
+    
+    return cleanedResponse;
   } catch (e) {
-    console.log(e);
+    console.log('API Error:', e.message);
+    
+    // Fallback to generic response if API fails
+    if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT') {
+      return "I'm experiencing high load. Please try rephrasing your question or try again shortly.";
+    }
+    
     return SERVICE_DOWN_MESSAGE;
   }
 }

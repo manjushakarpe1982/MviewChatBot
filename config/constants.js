@@ -6,6 +6,13 @@ const OLLAMA_URL = "http://127.0.0.1:11434/api/generate";
 const MODEL_NAME = "gemma3:12b";
 
 // =====================================
+// PERFORMANCE OPTIMIZATIONS
+// =====================================
+
+const FAST_MODE_ENABLED = true;
+const CACHE_ENABLED = true;
+
+// =====================================
 // ADDITIONAL CONFIGURATION
 // =====================================
 
@@ -72,4 +79,6 @@ module.exports = {
   MINERAL_VIEW_SUPPORT,
   COMMON_CORRECTIONS,
   MAX_MEMORY_TURNS,
+  FAST_MODE_ENABLED,
+  CACHE_ENABLED,
 };
