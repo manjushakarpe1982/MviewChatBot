@@ -219,9 +219,9 @@ async function askChatbot(userQuestion) {
   };
 
   try {
-    console.time('check api time');
+    console.time('time');
     const response = await axios.post(OLLAMA_URL, payload, { timeout: 120000 });
-    console.timeEnd('check api time');
+    console.timeEnd('time');
 
     if (response.status !== 200) {
       console.log(SERVICE_DOWN_MESSAGE)
