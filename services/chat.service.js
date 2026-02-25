@@ -30,10 +30,10 @@ const session = axios.create();
 async function restartModel(model) {
   try {
     console.log(`Restarting model: ${model}`);
-    // Stop model
-    await session.post(`${OLLAMA_BASE_URL}/api/models/${model}/stop`, {}, { timeout: 15000 });
-    // Start model
-    await session.post(`${OLLAMA_BASE_URL}/api/models/${model}/start`, {}, { timeout: 30000 });
+    // Unload model (keep_alive: 0 tells Ollama to evict it from memory)
+    await session.post(`${OLLAMA_BASE_URL}/api/generate`, { model, keep_alive: 0 }, { timeout: 15000 });
+    // Preload model (keep_alive: -1 keeps it loaded indefinitely)
+    await session.post(`${OLLAMA_BASE_URL}/api/generate`, { model, keep_alive: -1 }, { timeout: 30000 });
     console.log(`✔ ${model} restarted successfully`);
   } catch (ex) {
     console.log(`❌ Failed to restart ${model}: ${ex.message}`);
