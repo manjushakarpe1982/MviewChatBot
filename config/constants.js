@@ -2,7 +2,7 @@
 // CONFIGURATION
 // =====================================
 
-const OLLAMA_BASE_URL = "http://localhost:11434";
+const OLLAMA_BASE_URL = "http://127.0.0.1:11434";
 const OLLAMA_URL = "http://127.0.0.1:11434/api/generate";
 const MODEL_NAME = "gemma3:12b";
 
