@@ -2,6 +2,7 @@
 
 const axios = require("axios");
 const {
+  OLLAMA_BASE_URL,
   OLLAMA_URL,
   MODEL_NAME,
   SERVICE_DOWN_MESSAGE,
@@ -15,6 +16,29 @@ const {
   COMMON_CORRECTIONS,
   MAX_MEMORY_TURNS,
 } = require("../config/constants");
+
+// =====================================
+// AXIOS SESSION (persistent connection for faster performance)
+// =====================================
+
+const session = axios.create();
+
+// =====================================
+// RESTART MODEL
+// =====================================
+
+async function restartModel(model) {
+  try {
+    console.log(`Restarting model: ${model}`);
+    // Stop model
+    await session.post(`${OLLAMA_BASE_URL}/api/models/${model}/stop`, {}, { timeout: 15000 });
+    // Start model
+    await session.post(`${OLLAMA_BASE_URL}/api/models/${model}/start`, {}, { timeout: 30000 });
+    console.log(`✔ ${model} restarted successfully`);
+  } catch (ex) {
+    console.log(`❌ Failed to restart ${model}: ${ex.message}`);
+  }
+}
 
 // =====================================
 // SIMPLE MEMORY STORAGE
@@ -219,17 +243,26 @@ async function askChatbot(userQuestion) {
   };
 
   try {
-    const response = await axios.post(OLLAMA_URL, payload, { timeout: 120000 });
+    const startTime = Date.now();
+
+    const response = await session.post(OLLAMA_URL, payload, { timeout: 120000 });
+
+    const endTime = Date.now();
+    const responseTime = ((endTime - startTime) / 1000).toFixed(2);
 
     if (response.status !== 200) {
-      console.log(SERVICE_DOWN_MESSAGE)
+      console.log(SERVICE_DOWN_MESSAGE);
       return SERVICE_DOWN_MESSAGE;
     }
 
     const rawText = response.data.response || "";
-    return cleanResponse(rawText);
+    const finalAnswer = cleanResponse(rawText);
+
+    return `${finalAnswer}\n(Response time: ${responseTime} sec)`;
   } catch (e) {
-    console.log(e);
+    if (e.code === "ECONNREFUSED" || e.code === "ECONNRESET") {
+      return SERVICE_DOWN_MESSAGE;
+    }
     return SERVICE_DOWN_MESSAGE;
   }
 }
@@ -284,4 +317,5 @@ async function askChatbotWithMemory(userQuestion) {
 
 module.exports = {
   askChatbotWithMemory,
+  restartModel,
 };
