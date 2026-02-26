@@ -51,7 +51,7 @@ async function mviewAssistant(req, res) {
     if (result.success) {
       return res.status(200).json({ answer: result.answer });
     } else {
-      return res.status(202).json({ message: result.message });
+      return res.status(202).json({ answer: result.message });
     }
   } catch (err) {
     console.error("MviewAssistant error:", err);
