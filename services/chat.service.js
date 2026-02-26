@@ -296,7 +296,7 @@ const { ObjectId } = require("mongodb");
 
 const COLLECTION_NAME = "TexasOilAndGasAssistant";
 const POLL_INTERVAL_MS = 10;   // check every 300 ms
-const ANSWER_TIMEOUT_MS = 10000; // give up after 3 seconds
+const ANSWER_TIMEOUT_MS = 15000; // give up after 3 seconds
 
 async function mviewAssistantService({ member_id, email, question }) {
   const db = await getDB();
@@ -326,9 +326,7 @@ async function mviewAssistantService({ member_id, email, question }) {
           return resolve({
             success: false,
             message:
-              "We appreciate your patience. Unfortunately, we were unable to retrieve an answer at this time. " +
-              "Our system is processing your request, but it's taking longer than expected. " +
-              "Please try again in a few moments.",
+              "Service is temporarily unavailable. Please try again later.",
           });
         }
 
