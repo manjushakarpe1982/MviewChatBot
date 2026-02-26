@@ -295,7 +295,7 @@ const { getDB } = require("../config/db");
 const { ObjectId } = require("mongodb");
 
 const COLLECTION_NAME = "TexasOilAndGasAssistant";
-const POLL_INTERVAL_MS = 300;   // check every 300 ms
+const POLL_INTERVAL_MS = 50;   // check every 300 ms
 const ANSWER_TIMEOUT_MS = 10000; // give up after 3 seconds
 
 async function mviewAssistantService({ member_id, email, question }) {
