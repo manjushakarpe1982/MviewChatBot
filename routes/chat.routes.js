@@ -2,10 +2,12 @@
 
 const express = require("express");
 const router = express.Router();
-const { chat, testing } = require("../controllers/chat.controller");
+const { chat, testing, mviewAssistant } = require("../controllers/chat.controller");
 
 router.post("/chat", chat);
 
-router.get("/welcome", testing)
+router.get("/welcome", testing);
+
+router.post("/MviewAssistant", mviewAssistant);
 
 module.exports = router;

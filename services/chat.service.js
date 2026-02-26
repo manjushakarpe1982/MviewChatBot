@@ -284,4 +284,70 @@ async function askChatbotWithMemory(userQuestion) {
 
 module.exports = {
   askChatbotWithMemory,
+  mviewAssistantService,
 };
+
+// =====================================
+// MVIEW ASSISTANT — MONGO INSERT & POLL
+// =====================================
+
+const { getDB } = require("../config/db");
+const { ObjectId } = require("mongodb");
+
+const COLLECTION_NAME = "TexasOilAndGasAssistant";
+const POLL_INTERVAL_MS = 300;   // check every 300 ms
+const ANSWER_TIMEOUT_MS = 10000; // give up after 3 seconds
+
+async function mviewAssistantService({ member_id, email, question }) {
+  const db = await getDB();
+  const collection = db.collection(COLLECTION_NAME);
+
+  // Build the document to insert
+  const docToInsert = {
+    question: question,
+    created_at: new Date(),
+  };
+  if (member_id) docToInsert.member_id = member_id;
+  if (email) docToInsert.email = email;
+
+  // Insert and capture the generated _id
+  const insertResult = await collection.insertOne(docToInsert);
+  const insertedId = insertResult.insertedId;
+
+  // Poll for answer with a 3-second hard timeout
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+
+    async function checkAnswer() {
+      try {
+        const elapsed = Date.now() - startTime;
+
+        if (elapsed >= ANSWER_TIMEOUT_MS) {
+          return resolve({
+            success: false,
+            message:
+              "We appreciate your patience. Unfortunately, we were unable to retrieve an answer at this time. " +
+              "Our system is processing your request, but it's taking longer than expected. " +
+              "Please try again in a few moments.",
+          });
+        }
+
+        const doc = await collection.findOne({ _id: new ObjectId(insertedId) });
+
+        if (doc && doc.ans !== null && doc.ans !== undefined && String(doc.ans).trim() !== "") {
+          return resolve({ success: true, answer: doc.ans });
+        }
+
+        // Not ready yet — check again after POLL_INTERVAL_MS
+        setTimeout(checkAnswer, POLL_INTERVAL_MS);
+      } catch (err) {
+        return resolve({
+          success: false,
+          message: "An unexpected error occurred while retrieving your answer. Please try again.",
+        });
+      }
+    }
+
+    checkAnswer();
+  });
+}
