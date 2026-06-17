@@ -6,6 +6,7 @@ const express = require("express");
 const cors = require("cors");
 const chatRoutes = require("./routes/chat.routes");
 const { startBackupCron } = require("./cron/backup.cron");
+const { startUserbehaviorBackupCron } = require("./cron/userbehaviorBackup.cron");
 
 const app = express();
 
@@ -31,6 +32,8 @@ const PORT = process.env.PORT || 2044;
 
 app.listen(PORT, "127.0.0.1", () => {
   console.log(`Server running on port ${PORT}`);
-  // Register the daily Production -> Production_Backup sync cron.
+  // Register the daily Production -> Production_Backup sync cron (small tables).
   startBackupCron();
+  // Register the dedicated large `userbehavior` table sync cron.
+  startUserbehaviorBackupCron();
 });

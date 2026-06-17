@@ -34,7 +34,11 @@ module.exports = {
     // "userbehavior",
   ],
 
-  // Daily run time, cron format (default 02:00 server time).
+  // Daily run time for the small-tables job, cron format (default 02:00).
   // "minute hour day month weekday"
   schedule: process.env.PG_BACKUP_CRON || "0 2 * * *",
+
+  // Separate schedule for the large `userbehavior` table (default 03:00 daily,
+  // after the small-tables job). Runs services/userbehaviorBackup.service.js.
+  userbehaviorSchedule: process.env.PG_USERBEHAVIOR_CRON || "0 3 * * *",
 };
