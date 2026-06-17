@@ -34,11 +34,15 @@ module.exports = {
     // "userbehavior",
   ],
 
-  // Daily run time for the small-tables job, cron format (default 02:00).
-  // "minute hour day month weekday"
-  schedule: process.env.PG_BACKUP_CRON || "0 2 * * *",
+  // Timezone the schedules below are interpreted in. The server may run on a
+  // different timezone (e.g. US time), so we pin schedules to India time and
+  // let node-cron convert -- "0 9 * * *" then means 9:00 AM IST, always.
+  timezone: process.env.PG_BACKUP_TZ || "Asia/Kolkata",
 
-  // Separate schedule for the large `userbehavior` table (default 03:00 daily,
-  // after the small-tables job). Runs services/userbehaviorBackup.service.js.
-  userbehaviorSchedule: process.env.PG_USERBEHAVIOR_CRON || "0 3 * * *",
+  // Small-tables job: 9:00 AM India time.  "minute hour day month weekday"
+  schedule: process.env.PG_BACKUP_CRON || "0 9 * * *",
+
+  // Large `userbehavior` table job: 7:00 AM India time (runs before the
+  // small-tables job). Runs services/userbehaviorBackup.service.js.
+  userbehaviorSchedule: process.env.PG_USERBEHAVIOR_CRON || "0 7 * * *",
 };

@@ -16,17 +16,21 @@ function startUserbehaviorBackupCron() {
     return;
   }
 
-  console.log(`[userbehavior] cron scheduled: "${schedule}"`);
+  console.log(`[userbehavior] cron scheduled: "${schedule}" (${config.timezone})`);
 
-  cron.schedule(schedule, async () => {
-    const startedAt = new Date().toISOString();
-    console.log(`[userbehavior] ${startedAt} starting sync...`);
-    try {
-      await runUserbehaviorBackup();
-    } catch (err) {
-      console.error(`[userbehavior] FAILED:`, err.message);
-    }
-  });
+  cron.schedule(
+    schedule,
+    async () => {
+      const startedAt = new Date().toISOString();
+      console.log(`[userbehavior] ${startedAt} starting sync...`);
+      try {
+        await runUserbehaviorBackup();
+      } catch (err) {
+        console.error(`[userbehavior] FAILED:`, err.message);
+      }
+    },
+    { timezone: config.timezone }
+  );
 }
 
 module.exports = { startUserbehaviorBackupCron };
