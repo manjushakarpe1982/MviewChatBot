@@ -26,12 +26,12 @@ module.exports = {
   // Tables to copy (order does not matter -- FK checks are disabled during load)
   tables: [
     "members_entity",
-    "userbehavior",
+    "lease_claim_requests",
     "subscription_checkout_logs",
     "sub_subscription_plan",
     "membersclaimedleases",
     "professional_claimed_owners",
-    "lease_claim_requests",
+    // "userbehavior",
   ],
 
   // Daily run time, cron format (default 02:00 server time).

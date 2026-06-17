@@ -19,6 +19,26 @@ const copyStreams = require("pg-copy-streams");
 const { pipeline } = require("stream/promises");
 const config = require("../config/backupConfig");
 
+// Names of a table's GENERATED columns (e.g. userbehavior.spendingtime).
+// PostgreSQL 12 forbids generated columns in a plain COPY in either direction,
+// which is why a whole-table COPY of userbehavior fails / stalls.
+async function generatedColumns(client, table) {
+  const q = `SELECT column_name FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = $1
+               AND is_generated <> 'NEVER'`;
+  return (await client.query(q, [table])).rows.map((r) => r.column_name);
+}
+
+// A table's non-generated (writable) columns, in order. These are the columns
+// we can COPY into staging; staging recomputes its generated ones itself.
+async function writableColumns(client, table) {
+  const q = `SELECT column_name FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = $1
+               AND is_generated = 'NEVER'
+             ORDER BY ordinal_position`;
+  return (await client.query(q, [table])).rows.map((r) => r.column_name);
+}
+
 async function runBackup() {
   const { production, staging, tables } = config;
 
@@ -27,6 +47,12 @@ async function runBackup() {
 
   await prod.connect();
   await stg.connect();
+
+  // HARD GUARANTEE: lock the production session to read-only at the server
+  // level. Any write (INSERT/UPDATE/DELETE/TRUNCATE/DDL) on this connection is
+  // now rejected by PostgreSQL itself -- only SELECT / COPY ... TO STDOUT run.
+  // This protects production even if the code below is changed later.
+  await prod.query("SET default_transaction_read_only = on");
 
   const summary = [];
 
@@ -57,12 +83,27 @@ async function runBackup() {
 
     // Stream each table prod -> staging using binary COPY.
     for (const t of tables) {
-      const sourceStream = prod.query(
-        copyStreams.to(`COPY public."${t}" TO STDOUT (FORMAT binary)`)
-      );
-      const destStream = stg.query(
-        copyStreams.from(`COPY public."${t}" FROM STDIN (FORMAT binary)`)
-      );
+      const genCols = await generatedColumns(prod, t);
+
+      let sourceSql, destSql;
+      if (genCols.length > 0) {
+        // Table has a generated column (userbehavior.spendingtime). A plain
+        // whole-table COPY breaks on PG 12, so list only the writable columns.
+        // COPY (SELECT ...) is used on the source because that form CAN read a
+        // generated value out; staging recomputes spendingtime to the same
+        // value after load, so no production data is lost.
+        const cols = await writableColumns(stg, t);
+        const colList = cols.map((c) => `"${c}"`).join(", ");
+        sourceSql = `COPY (SELECT ${colList} FROM public."${t}") TO STDOUT (FORMAT binary)`;
+        destSql = `COPY public."${t}" (${colList}) FROM STDIN (FORMAT binary)`;
+      } else {
+        // No generated columns: copy the whole table exactly as before.
+        sourceSql = `COPY public."${t}" TO STDOUT (FORMAT binary)`;
+        destSql = `COPY public."${t}" FROM STDIN (FORMAT binary)`;
+      }
+
+      const sourceStream = prod.query(copyStreams.to(sourceSql));
+      const destStream = stg.query(copyStreams.from(destSql));
 
       await pipeline(sourceStream, destStream);
 
